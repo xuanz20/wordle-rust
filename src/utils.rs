@@ -66,22 +66,22 @@ pub fn valid(input: &String) -> bool {
     return ACCEPTABLE.contains(&input.as_str());
 }
 
-pub fn difficult_valid(answer: &[usize; 5], guess: &[usize; 5], result: &Vec<Status>) -> bool {
+pub fn difficult_valid(last_guess: &[usize; 5], guess: &[usize; 5], result: &Vec<Status>) -> bool {
     let mut guess_times = count_times(guess);
     for i in 0..5usize {
         if result[i] == Status::G {
-            if guess[i] != answer[i] {
+            if guess[i] != last_guess[i] {
                 return false;
             }
-            guess_times[guess[i]] -= 1;
+            guess_times[last_guess[i]] -= 1;
         }
     }
     for i in 0..5usize {
         if result[i] == Status::Y {
-            if guess_times[answer[i]] == 0 {
+            if guess_times[last_guess[i]] == 0 {
                 return false;
             }
-            guess_times[answer[i]] -= 1;
+            guess_times[last_guess[i]] -= 1;
         }
     }
     true
