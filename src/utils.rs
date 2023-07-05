@@ -1,4 +1,6 @@
-use crate::builtin_words::ACCEPTABLE;
+use rand::{seq::SliceRandom};
+
+use crate::{builtin_words::{ACCEPTABLE, FINAL}, args::{is_final, FINAL_SET, is_acceptable, ACCEPTABLE_SET}};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Status {
@@ -63,7 +65,11 @@ pub fn valid(input: &String) -> bool {
             return false;
         }
     }
-    return ACCEPTABLE.contains(&input.as_str());
+    if is_acceptable() {
+        return ACCEPTABLE_SET.exclusive_access().contains(input);
+    } else {
+        return ACCEPTABLE.contains(&input.as_str());
+    }
 }
 
 pub fn difficult_valid(last_guess: &[usize; 5], guess: &[usize; 5], result: &Vec<Status>) -> bool {
@@ -85,4 +91,28 @@ pub fn difficult_valid(last_guess: &[usize; 5], guess: &[usize; 5], result: &Vec
         }
     }
     true
+}
+
+pub fn final_len() -> usize {
+    if is_final() {
+        return FINAL_SET.exclusive_access().len();
+    } else {
+        return 2315;
+    }
+}
+
+pub fn get_final_index(index: usize) -> String {
+    if is_final() {
+        return FINAL_SET.exclusive_access()[index].clone();
+    } else {
+        return FINAL[index].to_string();
+    }
+}
+
+pub fn get_final_random() -> String {
+    if is_final() {
+        return FINAL_SET.exclusive_access().choose(&mut rand::thread_rng()).unwrap().clone();
+    } else {
+        return FINAL.choose(&mut rand::thread_rng()).unwrap().to_string();
+    }
 }

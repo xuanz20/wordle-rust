@@ -1,4 +1,4 @@
-use crate::{utils::*, args::*, builtin_words::FINAL, sync::UPSafeCell};
+use crate::{utils::*, args::*, sync::UPSafeCell};
 use rand::seq::SliceRandom;
 use lazy_static::*;
 use std::collections::{BTreeMap, BTreeSet};
@@ -11,7 +11,7 @@ lazy_static! {
 }
 
 pub fn run_one_time() -> (bool, i32) {
-    let mut ans_str: String = String::new();
+    let mut ans_str: String;
     if is_word() {
         let word = WORD.exclusive_access();
         ans_str = word.as_ref().unwrap().clone();
@@ -19,16 +19,17 @@ pub fn run_one_time() -> (bool, i32) {
         if is_seed() { // with seed
             let seed = get_seed();
             let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
-            let mut arr = [0usize; 2315];
-            for i in 0 ..= 2314usize {
-                arr[i] = i;
+            let len = final_len();
+            let mut arr = Vec::with_capacity(len);
+            for i in 0 .. len {
+                arr.push(i);
             }
             arr.shuffle(& mut rng);
             let index = get_day();
-            ans_str = FINAL[arr[index as usize]].to_string();
+            ans_str = get_final_index(arr[index as usize]);
         } else {
             loop {
-                ans_str = FINAL.choose(&mut rand::thread_rng()).unwrap().to_string();
+                ans_str = get_final_random();
                 let mut random_answer = ANSWER_ARR.exclusive_access();
                 if !random_answer.contains(&ans_str) {
                     random_answer.push(ans_str.clone());
@@ -129,9 +130,6 @@ pub fn run() {
     else {
         loop {
             let (success, times) = run_one_time();
-            let mut next = String::new();
-            std::io::stdin().read_line(&mut next).expect("INPUT ERROR");
-            next.pop();
             if is_stats() {
                 if success {
                     total_sucess += 1;
@@ -153,6 +151,10 @@ pub fn run() {
             if is_day() {
                 *DAY.exclusive_access() += 1;
             }
+
+            let mut next = String::new();
+            std::io::stdin().read_line(&mut next).expect("INPUT ERROR");
+            next.pop();
             match next.as_str() {
                 "N" => {break;},
                 _ => (),
