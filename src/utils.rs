@@ -1,7 +1,5 @@
 use crate::builtin_words::ACCEPTABLE;
 
-
-
 pub fn str2arr(str: &String) -> [usize; 5] {
     assert_eq!(str.len(), 5);
     let mut arr = [0; 5];

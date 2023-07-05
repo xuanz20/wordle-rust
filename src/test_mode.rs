@@ -1,7 +1,13 @@
-use crate::utils::*;
+use crate::{utils::*, args::*};
 
 pub fn run() {
-    let ans_str: String = text_io::read!();
+    let mut ans_str: String = String::new();
+    if is_word() {
+        let word = WORD.exclusive_access();
+        ans_str = word.as_ref().unwrap().clone();
+    } else {
+        ans_str = text_io::read!();
+    }
     let answer = str2arr(&ans_str);
     let ans_times = count_times(&answer);
     let mut status = vec![Status::X; 26];
