@@ -3,6 +3,7 @@ use rand::seq::SliceRandom;
 use lazy_static::*;
 use std::collections::{BTreeMap, BTreeSet};
 use std::cmp::Reverse;
+use rand::SeedableRng;
 
 lazy_static! {
     static ref ANSWER_ARR: UPSafeCell<Vec<String>> = unsafe { UPSafeCell::new(Vec::new()) };
@@ -15,12 +16,24 @@ pub fn run_one_time() -> (bool, i32) {
         let word = WORD.exclusive_access();
         ans_str = word.as_ref().unwrap().clone();
     } else if is_random() {
-        loop {
-            ans_str = FINAL.choose(&mut rand::thread_rng()).unwrap().to_string();
-            let mut random_answer = ANSWER_ARR.exclusive_access();
-            if !random_answer.contains(&ans_str) {
-                random_answer.push(ans_str.clone());
-                break;
+        if is_seed() { // with seed
+            let seed = get_seed();
+            let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+            let mut arr = [0usize; 2315];
+            for i in 0 ..= 2314usize {
+                arr[i] = i;
+            }
+            arr.shuffle(& mut rng);
+            let index = get_day();
+            ans_str = FINAL[arr[index as usize]].to_string();
+        } else {
+            loop {
+                ans_str = FINAL.choose(&mut rand::thread_rng()).unwrap().to_string();
+                let mut random_answer = ANSWER_ARR.exclusive_access();
+                if !random_answer.contains(&ans_str) {
+                    random_answer.push(ans_str.clone());
+                    break;
+                }
             }
         }
     } else {
@@ -136,6 +149,9 @@ pub fn run() {
                     }
                 );
                 print_top_five();
+            }
+            if is_day() {
+                *DAY.exclusive_access() += 1;
             }
             match next.as_str() {
                 "N" => {break;},

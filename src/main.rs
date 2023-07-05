@@ -3,7 +3,7 @@ use std::io::{self, Write};
 
 mod builtin_words;
 mod sync;
-mod test_mode;
+mod run;
 mod utils;
 mod args;
 
@@ -24,21 +24,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         io::stdout().flush().unwrap();
     } else {
         // println!("I am not in a tty. Please print according to test requirements!");
-        test_mode::run();
+        run::run();
     }
-
-    // let mut line = String::new();
-    // io::stdin().read_line(&mut line)?;
-    // println!("Welcome to wordle, {}!", line.trim());
-
-    // example: print arguments
-    /*
-    print!("Command line arguments: ");
-    for arg in std::env::args() {
-        print!("{} ", arg);
-    }
-    println!("");
-    // TODO: parse the arguments in `args`
-    */
+    
     Ok(())
 }
