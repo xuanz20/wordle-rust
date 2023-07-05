@@ -12,6 +12,8 @@ console = "0.15"
 text_io = "0.1.12"
 lazy_static = "1.4"
 rand = "0.8.5"
+serde = "1.0.166"
+serde_derive = "1.0.166"
 
 [dev-dependencies]
 lazy_static = "1.4"

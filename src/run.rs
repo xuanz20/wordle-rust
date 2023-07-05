@@ -1,3 +1,4 @@
+use crate::json::{Game, write_state};
 use crate::{utils::*, args::*, sync::UPSafeCell};
 use rand::seq::SliceRandom;
 use lazy_static::*;
@@ -6,11 +7,15 @@ use std::cmp::Reverse;
 use rand::SeedableRng;
 
 lazy_static! {
-    static ref ANSWER_ARR: UPSafeCell<Vec<String>> = unsafe { UPSafeCell::new(Vec::new()) };
-    static ref GUESS_ARR: UPSafeCell<BTreeMap<String, i32>> = unsafe { UPSafeCell::new(BTreeMap::new()) };
+    pub static ref ANSWER_ARR: UPSafeCell<Vec<String>> = unsafe { UPSafeCell::new(Vec::new()) };
+    pub static ref GUESS_ARR: UPSafeCell<BTreeMap<String, i32>> = unsafe { UPSafeCell::new(BTreeMap::new()) };
+    pub static ref TOTAL_SUCCESS: UPSafeCell<i32> = unsafe { UPSafeCell::new(0) };
+    pub static ref TOTAL_FAILURE: UPSafeCell<i32> = unsafe { UPSafeCell::new(0) };
+    pub static ref TOTAL_SUCCESS_GUESS_TIMES: UPSafeCell<i32> = unsafe { UPSafeCell::new(0) };
 }
 
-pub fn run_one_time() -> (bool, i32) {
+pub fn run_one_time() -> (bool, i32, Game) {
+    let mut game: Game = Game { answer: String::new(), guesses: Vec::new() };
     let mut ans_str: String;
     if is_word() {
         let word = WORD.exclusive_access();
@@ -40,6 +45,7 @@ pub fn run_one_time() -> (bool, i32) {
     } else {
         ans_str = text_io::read!();
     }
+    game.answer = ans_str.clone().to_ascii_uppercase();
     let answer = str2arr(&ans_str);
     let ans_times = count_times(&answer);
     let mut status = vec![Status::X; 26];
@@ -60,10 +66,8 @@ pub fn run_one_time() -> (bool, i32) {
             println!("INVALID");
             continue;
         }
-        GUESS_ARR.exclusive_access().entry(guess_str.clone()).or_insert(0);
-        if let Some(value) = GUESS_ARR.exclusive_access().get_mut(&guess_str) {
-            *value += 1;
-        }
+        update_guess_arr(&guess_str);
+        game.guesses.push(guess_str.clone().to_ascii_uppercase());
         let mut guess_times = [0; 26];
         for i in 0..5usize { // check for each char
             let cha = guess[i];
@@ -103,54 +107,30 @@ pub fn run_one_time() -> (bool, i32) {
         print!("\n");
         if success {
             println!("CORRECT {}", times);
-            return (true, times);
+            return (true, times, game);
         }
         times += 1;
         last_guess = guess;
     }
     println!("FAILED {}", ans_str.to_uppercase());
-    (false, 0)
+    (false, 0, game)
 }
 
 pub fn run() {
-    let mut total_sucess: i32 = 0;
-    let mut total_failure: i32 = 0;
-    let mut total_success_guess_times: i32 = 0;
-    if is_word() { 
-        let (success, times) = run_one_time();
-        if is_stats() {
-            if success {
-                println!("1 0 {:.2}", times as f64 / 6.0);
-            } else {
-                println!("0 1 0.00");
-            }
-            print_top_five();
-        }
-    }
-    else {
+    if is_word() {
+        let (success, times, game) = run_one_time();
+        update_stats(success, times);
+        update_state(game);
+    } else {
         loop {
-            let (success, times) = run_one_time();
-            if is_stats() {
-                if success {
-                    total_sucess += 1;
-                    total_success_guess_times += times;
-                } else {
-                    total_failure += 1;
-                }
-                println!("{} {} {:.2}", 
-                    total_sucess, 
-                    total_failure, 
-                    if total_sucess > 0 {
-                        total_success_guess_times as f64 / total_sucess as f64
-                    } else {
-                        0.00
-                    }
-                );
-                print_top_five();
-            }
+            let (success, times, game) = run_one_time();
+            update_stats(success, times);
+
             if is_day() {
                 *DAY.exclusive_access() += 1;
             }
+
+            update_state(game);
 
             let mut next = String::new();
             std::io::stdin().read_line(&mut next).expect("INPUT ERROR");
@@ -160,6 +140,10 @@ pub fn run() {
                 _ => (),
             }
         }
+    }
+
+    if is_state() {
+        write_state(&STATE_PATH.exclusive_access());
     }
 }
 
@@ -189,4 +173,41 @@ fn print_top_five() {
         }
     }
     println!("");
+}
+
+fn update_stats(success: bool, times: i32) {
+    let mut total_sucess = TOTAL_SUCCESS.exclusive_access();
+    let mut total_failure= TOTAL_FAILURE.exclusive_access();
+    let mut total_success_guess_times = TOTAL_SUCCESS_GUESS_TIMES.exclusive_access();
+    if is_stats() {
+        if success {
+            *total_sucess += 1;
+            *total_success_guess_times += times;
+        } else {
+            *total_failure += 1;
+        }
+        println!("{} {} {:.2}", 
+            *total_sucess, 
+            *total_failure, 
+            if *total_sucess > 0 {
+                *total_success_guess_times as f64 / *total_sucess as f64
+            } else {
+                0.00
+            }
+        );
+        print_top_five();
+    }
+}
+
+pub fn update_guess_arr(guess_str: &String) {
+    GUESS_ARR.exclusive_access().entry(guess_str.clone()).or_insert(0);
+    if let Some(value) = GUESS_ARR.exclusive_access().get_mut(guess_str) {
+        *value += 1;
+    }
+}
+
+pub fn update_state(game: Game) {
+    let mut state = STATE.exclusive_access();
+    state.total_rounds += 1;
+    state.games.push(game);
 }

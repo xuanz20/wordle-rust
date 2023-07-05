@@ -6,6 +6,7 @@ mod sync;
 mod run;
 mod utils;
 mod args;
+mod json;
 
 use args::*;
 
