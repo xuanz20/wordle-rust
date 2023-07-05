@@ -134,7 +134,9 @@ pub fn run() {
 
             let mut next = String::new();
             std::io::stdin().read_line(&mut next).expect("INPUT ERROR");
-            next.pop();
+            if next.len() > 1 {
+                next.pop();
+            }
             match next.as_str() {
                 "N" => {break;},
                 _ => (),

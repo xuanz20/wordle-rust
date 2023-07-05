@@ -7,6 +7,7 @@ mod run;
 mod utils;
 mod args;
 mod json;
+mod config;
 
 use args::*;
 
