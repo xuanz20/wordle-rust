@@ -109,6 +109,9 @@ pub fn run_one_time() -> (bool, i32, Game) {
             println!("CORRECT {}", times);
             return (true, times, game);
         }
+        if times != 6 && is_pos() {
+            print_pos(&guess, &result);
+        }
         times += 1;
         last_guess = guess;
     }
@@ -181,13 +184,13 @@ fn update_stats(success: bool, times: i32) {
     let mut total_sucess = TOTAL_SUCCESS.exclusive_access();
     let mut total_failure= TOTAL_FAILURE.exclusive_access();
     let mut total_success_guess_times = TOTAL_SUCCESS_GUESS_TIMES.exclusive_access();
+    if success {
+        *total_sucess += 1;
+        *total_success_guess_times += times;
+    } else {
+        *total_failure += 1;
+    }
     if is_stats() {
-        if success {
-            *total_sucess += 1;
-            *total_success_guess_times += times;
-        } else {
-            *total_failure += 1;
-        }
         println!("{} {} {:.2}", 
             *total_sucess, 
             *total_failure, 
@@ -212,4 +215,48 @@ pub fn update_state(game: Game) {
     let mut state = STATE.exclusive_access();
     state.total_rounds += 1;
     state.games.push(game);
+}
+
+pub fn print_pos(guess: &[usize; 5], result: &Vec<Status>) {
+    let mut pos = POSSIBLE_SET.exclusive_access();
+    if pos.len() == 0 {
+        *pos = ACCEPTABLE_SET.exclusive_access().clone();
+    }
+    pos.retain(|w| is_pos_word(&w, guess, result));
+    println!("All possible words:");
+    pos.iter().for_each(|w| print!("{} ", w));
+    println!("");
+    println!("{} possible words in total", pos.len());
+}
+
+fn is_pos_word(w: &String, guess: &[usize; 5], result: &Vec<Status>) -> bool {
+    let word  = str2arr(w);
+    let mut word_times = count_times(&word);
+    for i in 0..5usize {
+        if result[i] == Status::G {
+            if word[i] != guess[i] {
+                return false;
+            }
+            word_times[guess[i]] -= 1;
+        }
+    }
+    for i in 0..5usize {
+        if result[i] == Status::Y {
+            if word_times[guess[i]] == 0 {
+                return false;
+            }
+            if word[i] == guess[i] {
+                return false;
+            }
+            word_times[guess[i]] -= 1;
+        }
+    }
+    for i in 0..5usize {
+        if result[i] == Status::R {
+            if word_times[guess[i]] > 0 {
+                return false;
+            }
+        }
+    }
+    true
 }

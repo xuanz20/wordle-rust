@@ -24,6 +24,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
         print!("{}", console::style("Your name: ").bold().red());
         io::stdout().flush().unwrap();
+        let mut line = String::new();
+        io::stdin().read_line(&mut line)?;
+        println!("Welcome to wordle, {}!", line.trim());
+        run::run();
     } else {
         // println!("I am not in a tty. Please print according to test requirements!");
         run::run();
