@@ -1,5 +1,5 @@
 use lazy_static::*;
-use crate::{sync::UPSafeCell, json::{parse_json, State}, config::parse_config};
+use crate::{sync::UPSafeCell, json::{parse_json, State}, config::parse_config, builtin_words::{FINAL, ACCEPTABLE}};
 use std::{io::Read, collections::HashSet};
 
 lazy_static! {
@@ -19,8 +19,12 @@ lazy_static! {
     pub static ref SEED: UPSafeCell<u64> = unsafe { UPSafeCell::new(0) };
     pub static ref FINAL_PATH: UPSafeCell<String> = unsafe { UPSafeCell::new(String::new()) };
     pub static ref ACCEPTABLE_PATH: UPSafeCell<String> = unsafe { UPSafeCell::new(String::new()) };
-    pub static ref FINAL_SET: UPSafeCell<Vec<String>> = unsafe { UPSafeCell::new(Vec::new()) };
-    pub static ref ACCEPTABLE_SET: UPSafeCell<Vec<String>> = unsafe { UPSafeCell::new(Vec::new()) };
+    pub static ref FINAL_SET: UPSafeCell<Vec<String>> = unsafe {
+        UPSafeCell::new(FINAL.iter().map(|&s| s.to_owned()).collect())
+    };
+    pub static ref ACCEPTABLE_SET: UPSafeCell<Vec<String>> = unsafe {
+        UPSafeCell::new(ACCEPTABLE.iter().map(|&s| s.to_owned()).collect())
+    };
     pub static ref STATE_PATH: UPSafeCell<String> = unsafe { UPSafeCell::new(String::new()) };
     pub static ref STATE: UPSafeCell<State> = unsafe { UPSafeCell::new(State { total_rounds: 0, games: Vec::new() }) };
 }
