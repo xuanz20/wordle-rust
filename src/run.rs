@@ -2,9 +2,9 @@ use crate::json::{Game, write_state};
 use crate::{utils::*, args::*, sync::UPSafeCell};
 use rand::seq::SliceRandom;
 use lazy_static::*;
-use std::collections::{BTreeMap, BTreeSet};
-use std::cmp::Reverse;
+use std::{collections::{BTreeMap, BTreeSet}, cmp::Reverse, primitive::f64};
 use rand::SeedableRng;
+use crate::utils::Status::*;
 
 lazy_static! {
     pub static ref ANSWER_ARR: UPSafeCell<Vec<String>> = unsafe { UPSafeCell::new(Vec::new()) };
@@ -52,19 +52,38 @@ pub fn run_one_time() -> (bool, i32, Game) {
     let mut result = vec![Status::X; 5];
     let mut times = 1;
     let mut last_guess = [0 as usize; 5];
+    let mut valid_input = true;
     while times <= 6 { // each guess
+        if valid_input {
+            if is_pos() || is_rec() {
+                update_pos(&last_guess, &result);
+            }
+            if times == 1 {
+                println!("All words are possible.");
+            } else {
+                print_pos();
+            }
+            if is_rec() && times != 1 {
+                print_rec();
+            }
+        }
         let mut success = true;
         let mut guess_str = String::new();
         std::io::stdin().read_line(&mut guess_str).expect("INPUT ERROR");
         guess_str.pop();
         if !valid(&guess_str) {
             println!("INVALID");
+            valid_input = false;
             continue;
         }
         let guess = str2arr(&guess_str);
         if is_difficult() && !difficult_valid(&last_guess, &guess, &result) {
             println!("INVALID");
+            valid_input = false;
             continue;
+        }
+        if !valid_input {
+            valid_input = true;
         }
         update_guess_arr(&guess_str);
         game.guesses.push(guess_str.clone().to_ascii_uppercase());
@@ -108,9 +127,6 @@ pub fn run_one_time() -> (bool, i32, Game) {
         if success {
             println!("CORRECT {}", times);
             return (true, times, game);
-        }
-        if times != 6 && is_pos() {
-            print_pos(&guess, &result);
         }
         times += 1;
         last_guess = guess;
@@ -217,12 +233,16 @@ pub fn update_state(game: Game) {
     state.games.push(game);
 }
 
-pub fn print_pos(guess: &[usize; 5], result: &Vec<Status>) {
+pub fn update_pos(guess: &[usize; 5], result: &Vec<Status>) {
     let mut pos = POSSIBLE_SET.exclusive_access();
     if pos.len() == 0 {
         *pos = ACCEPTABLE_SET.exclusive_access().clone();
     }
     pos.retain(|w| is_pos_word(&w, guess, result));
+}
+
+pub fn print_pos() {
+    let pos = POSSIBLE_SET.exclusive_access();
     println!("All possible words:");
     pos.iter().for_each(|w| print!("{} ", w));
     println!("");
@@ -259,4 +279,75 @@ fn is_pos_word(w: &String, guess: &[usize; 5], result: &Vec<Status>) -> bool {
         }
     }
     true
+}
+
+fn print_rec() {
+    let pos = POSSIBLE_SET.exclusive_access().clone();
+    let mut entropy: Vec<(&str, f64)> = pos.iter().map(|s| (s.as_str(), cal_entropy(s, &pos))).collect();
+    entropy.sort_by(|(_, a), (_, b)| b.partial_cmp(a).unwrap());
+    for (key, value) in entropy.iter().take(10) {
+        print!("{}: {:.2} ", key, value);
+    }
+    println!("");
+}
+
+fn cal_entropy(w: &String, pos: &Vec<String>) -> f64 {
+    let total_num  = pos.len() as f64;
+    let mut entropy: f64 = 0.0;
+    let mut all_times: [i32; 1024] = [0; 1024];
+    let word = str2arr(w);
+    let word_times = count_times(&word);
+    pos.iter().for_each(|s| {
+        let index = get_index(&word, s, &word_times);
+        all_times[index] += 1;
+    });
+    for i in all_times.iter() {
+        let pos = *i as f64 / total_num;
+        if pos > 0.0 {
+            entropy -= pos * pos.log2();
+        }
+    }
+    entropy
+}
+
+fn get_index(answer: &[usize; 5], s: &String, ans_times: &[i32; 26]) -> usize {
+    let mut index = 0;
+    let mut result: [Status; 5] = [X; 5];
+    let guess = str2arr(s);
+    let mut guess_times = [0; 26];
+    for i in 0..5usize { // check for each char
+        let cha = guess[i];
+        guess_times[cha] += 1;
+        if cha == answer[i] {
+            result[i] = Status::G;
+            if i > 0 {
+                let mut cu_cha_times = guess_times[cha];
+                for j in (0..=(i - 1)).rev() {
+                    if guess[j] == cha {
+                        if result[j] == Status::G {
+                            continue;
+                        } else if cu_cha_times > ans_times[cha] {
+                            result[j] = Status::R;
+                            cu_cha_times -= 1;
+                        }
+                    }
+                }
+            }
+        } else {
+            if guess_times[cha] <= ans_times[cha] {
+                result[i] = Status::Y;
+            } else {
+                result[i] = Status::R;
+            }
+        }
+    }
+    for i in 0..5usize {
+        match result[i] {
+            G => index += 0 * 4_usize.pow(i as u32),
+            Y => index += 1 * 4_usize.pow(i as u32),
+            R => index += 2 * 4_usize.pow(i as u32),
+            X => index += 3 * 4_usize.pow(i as u32),
+        }
+    }
+    index
 }
