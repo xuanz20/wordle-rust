@@ -49,6 +49,8 @@ pub fn get_day() -> usize { *DAY.exclusive_access() - 1 }
 pub fn get_seed() -> u64 { *SEED.exclusive_access() }
 
 pub fn args_parse() {
+    *IS_TTY.exclusive_access() = atty::is(atty::Stream::Stdout);
+
     let mut meet_word = false;
     let mut meet_day = false;
     let mut meet_seed = false;

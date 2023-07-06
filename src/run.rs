@@ -2,9 +2,8 @@ use crate::json::{Game, write_state};
 use crate::{utils::*, args::*, sync::UPSafeCell};
 use rand::seq::SliceRandom;
 use lazy_static::*;
-use std::{collections::{BTreeMap, BTreeSet}, cmp::Reverse, primitive::f64};
+use std::{collections::BTreeMap, io::{self, Write}};
 use rand::SeedableRng;
-use crate::utils::Status::*;
 
 lazy_static! {
     pub static ref ANSWER_ARR: UPSafeCell<Vec<String>> = unsafe { UPSafeCell::new(Vec::new()) };
@@ -17,6 +16,9 @@ lazy_static! {
 pub fn run_one_time() -> (bool, i32, Game) {
     let mut game: Game = Game { answer: String::new(), guesses: Vec::new() };
     let mut ans_str: String;
+    let mut tty_guess: Vec<[usize; 5]> = Vec::new();
+    let mut tty_result: Vec<Vec<Status>> = Vec::new();
+    let mut tty_status: Vec<Vec<Status>> = Vec::new();
     if is_word() {
         let word = WORD.exclusive_access();
         ans_str = word.as_ref().unwrap().clone();
@@ -43,6 +45,9 @@ pub fn run_one_time() -> (bool, i32, Game) {
             }
         }
     } else {
+        if is_tty() {
+            print!("Enter the answer: ");
+        }
         ans_str = text_io::read!();
     }
     game.answer = ans_str.clone().to_ascii_uppercase();
@@ -53,7 +58,12 @@ pub fn run_one_time() -> (bool, i32, Game) {
     let mut times = 1;
     let mut last_guess = [0 as usize; 5];
     let mut valid_input = true;
+
     while times <= 6 { // each guess
+        if is_tty() {
+            print!("\nRound {}, enter your input: ", console::style(format!("{}", times)).blue());
+            io::stdout().flush().unwrap();
+        }
         if valid_input {
             if is_pos() || is_rec() {
                 update_pos(&last_guess, &result);
@@ -74,13 +84,18 @@ pub fn run_one_time() -> (bool, i32, Game) {
         std::io::stdin().read_line(&mut guess_str).expect("INPUT ERROR");
         guess_str.pop();
         if !valid(&guess_str) {
-            println!("INVALID");
             valid_input = false;
             continue;
         }
         let guess = str2arr(&guess_str);
         if is_difficult() && !difficult_valid(&last_guess, &guess, &result) {
-            println!("INVALID");
+            if is_tty() {
+                println!("{}",
+                console::style("Use all your information. Try again.").red()
+            )
+            } else {
+                println!("INVALID");
+            }
             valid_input = false;
             continue;
         }
@@ -121,23 +136,65 @@ pub fn run_one_time() -> (bool, i32, Game) {
                 }
             }
         }
+
         // print the guess result
-        result.iter().for_each(|x| x.print());
-        print!(" ");
-        status.iter().for_each(|x| x.print());
-        print!("\n");
+        if is_tty() {
+            tty_guess.push(guess);
+            tty_result.push(result.clone());
+            tty_status.push(status.clone());
+            for i in 0..times as usize {
+                tty_result[i].iter().enumerate().for_each(|(x, y)| y.printc(tty_guess[i][x]));
+                print!(" ");
+                tty_status[i].iter().enumerate().for_each(|(x, y)| y.printc(x));
+                print!("\n");
+            }
+        } else {
+            result.iter().for_each(|x| x.print());
+            print!(" ");
+            status.iter().for_each(|x| x.print());
+            print!("\n");
+        }
+
         if success {
-            println!("CORRECT {}", times);
+            if is_tty() {
+                println!(
+                    "\n{} Your total guess time: {}.",
+                    console::style("You win!").green(),
+                    times
+                );
+            } else {
+                println!("CORRECT {}", times);
+            }
             return (true, times, game);
         }
         times += 1;
         last_guess = guess;
     }
-    println!("FAILED {}", ans_str.to_uppercase());
+    if is_tty() {
+        println!(
+            "\n{} The correct answer is {}.",
+            console::style("You lose.").yellow(),
+            console::style(format!("{}", ans_str.to_uppercase())).green()
+        );
+    } else {
+        println!("FAILED {}", ans_str.to_uppercase());
+    }
     (false, 0, game)
 }
 
-pub fn run() {
+pub fn run() -> Result<(), Box<dyn std::error::Error>> {
+    if is_tty() {
+        println!(
+            "I am in a tty. Please print {}!",
+            console::style("colorful characters").bold().blink().blue()
+        );
+        print!("{}", console::style("Your name: ").bold().red());
+        io::stdout().flush().unwrap();
+        let mut line = String::new();
+        io::stdin().read_line(&mut line)?;
+        println!("Welcome to wordle, {}!", line.trim());
+    }
+
     if is_word() {
         let (success, times, game) = run_one_time();
         update_stats(success, times);
@@ -153,6 +210,11 @@ pub fn run() {
 
             update_state(game);
 
+            if is_tty() {
+                print!("{} ", console::style("Do you want to start another game? [Y/N]").on_red());
+                io::stdout().flush().unwrap();
+            }
+
             let mut next = String::new();
             std::io::stdin().read_line(&mut next).expect("INPUT ERROR");
             if next.len() > 1 {
@@ -160,7 +222,7 @@ pub fn run() {
             }
             match next.as_str() {
                 "N" => {break;},
-                _ => (),
+                _ => {println!("")},
             }
         }
     }
@@ -168,188 +230,6 @@ pub fn run() {
     if is_state() {
         write_state(&STATE_PATH.exclusive_access());
     }
-}
 
-fn print_top_five() {
-    let mut sorted_map: BTreeMap<_, BTreeSet<_>> = BTreeMap::new();
-    let guess_arr_ref = &*GUESS_ARR.exclusive_access();
-    for (key, value) in guess_arr_ref.iter() {
-        sorted_map
-            .entry(Reverse(value))
-            .or_insert_with(BTreeSet::new)
-            .insert(key.clone());
-    }
-    let mut count = 0;
-    let mut first = true;
-    for (Reverse(value), keys) in sorted_map.iter() {
-        for key in keys {
-            if first {
-                first = false;
-            } else {
-                print!(" ");
-            }
-            print!("{} {}", key.to_uppercase(), value);
-            count += 1;
-            if count == 5 {
-                break;
-            }
-        }
-    }
-    println!("");
-}
-
-fn update_stats(success: bool, times: i32) {
-    let mut total_sucess = TOTAL_SUCCESS.exclusive_access();
-    let mut total_failure= TOTAL_FAILURE.exclusive_access();
-    let mut total_success_guess_times = TOTAL_SUCCESS_GUESS_TIMES.exclusive_access();
-    if success {
-        *total_sucess += 1;
-        *total_success_guess_times += times;
-    } else {
-        *total_failure += 1;
-    }
-    if is_stats() {
-        println!("{} {} {:.2}", 
-            *total_sucess, 
-            *total_failure, 
-            if *total_sucess > 0 {
-                *total_success_guess_times as f64 / *total_sucess as f64
-            } else {
-                0.00
-            }
-        );
-        print_top_five();
-    }
-}
-
-pub fn update_guess_arr(guess_str: &String) {
-    GUESS_ARR.exclusive_access().entry(guess_str.clone()).or_insert(0);
-    if let Some(value) = GUESS_ARR.exclusive_access().get_mut(guess_str) {
-        *value += 1;
-    }
-}
-
-pub fn update_state(game: Game) {
-    let mut state = STATE.exclusive_access();
-    state.total_rounds += 1;
-    state.games.push(game);
-}
-
-pub fn update_pos(guess: &[usize; 5], result: &Vec<Status>) {
-    let mut pos = POSSIBLE_SET.exclusive_access();
-    if pos.len() == 0 {
-        *pos = ACCEPTABLE_SET.exclusive_access().clone();
-    }
-    pos.retain(|w| is_pos_word(&w, guess, result));
-}
-
-pub fn print_pos() {
-    let pos = POSSIBLE_SET.exclusive_access();
-    println!("All possible words:");
-    pos.iter().for_each(|w| print!("{} ", w));
-    println!("");
-    println!("{} possible words in total", pos.len());
-}
-
-fn is_pos_word(w: &String, guess: &[usize; 5], result: &Vec<Status>) -> bool {
-    let word  = str2arr(w);
-    let mut word_times = count_times(&word);
-    for i in 0..5usize {
-        if result[i] == Status::G {
-            if word[i] != guess[i] {
-                return false;
-            }
-            word_times[guess[i]] -= 1;
-        }
-    }
-    for i in 0..5usize {
-        if result[i] == Status::Y {
-            if word_times[guess[i]] == 0 {
-                return false;
-            }
-            if word[i] == guess[i] {
-                return false;
-            }
-            word_times[guess[i]] -= 1;
-        }
-    }
-    for i in 0..5usize {
-        if result[i] == Status::R {
-            if word_times[guess[i]] > 0 {
-                return false;
-            }
-        }
-    }
-    true
-}
-
-fn print_rec() {
-    let pos = POSSIBLE_SET.exclusive_access().clone();
-    let mut entropy: Vec<(&str, f64)> = pos.iter().map(|s| (s.as_str(), cal_entropy(s, &pos))).collect();
-    entropy.sort_by(|(_, a), (_, b)| b.partial_cmp(a).unwrap());
-    for (key, value) in entropy.iter().take(10) {
-        print!("{}: {:.2} ", key, value);
-    }
-    println!("");
-}
-
-fn cal_entropy(w: &String, pos: &Vec<String>) -> f64 {
-    let total_num  = pos.len() as f64;
-    let mut entropy: f64 = 0.0;
-    let mut all_times: [i32; 1024] = [0; 1024];
-    let word = str2arr(w);
-    let word_times = count_times(&word);
-    pos.iter().for_each(|s| {
-        let index = get_index(&word, s, &word_times);
-        all_times[index] += 1;
-    });
-    for i in all_times.iter() {
-        let pos = *i as f64 / total_num;
-        if pos > 0.0 {
-            entropy -= pos * pos.log2();
-        }
-    }
-    entropy
-}
-
-fn get_index(answer: &[usize; 5], s: &String, ans_times: &[i32; 26]) -> usize {
-    let mut index = 0;
-    let mut result: [Status; 5] = [X; 5];
-    let guess = str2arr(s);
-    let mut guess_times = [0; 26];
-    for i in 0..5usize { // check for each char
-        let cha = guess[i];
-        guess_times[cha] += 1;
-        if cha == answer[i] {
-            result[i] = Status::G;
-            if i > 0 {
-                let mut cu_cha_times = guess_times[cha];
-                for j in (0..=(i - 1)).rev() {
-                    if guess[j] == cha {
-                        if result[j] == Status::G {
-                            continue;
-                        } else if cu_cha_times > ans_times[cha] {
-                            result[j] = Status::R;
-                            cu_cha_times -= 1;
-                        }
-                    }
-                }
-            }
-        } else {
-            if guess_times[cha] <= ans_times[cha] {
-                result[i] = Status::Y;
-            } else {
-                result[i] = Status::R;
-            }
-        }
-    }
-    for i in 0..5usize {
-        match result[i] {
-            G => index += 0 * 4_usize.pow(i as u32),
-            Y => index += 1 * 4_usize.pow(i as u32),
-            R => index += 2 * 4_usize.pow(i as u32),
-            X => index += 3 * 4_usize.pow(i as u32),
-        }
-    }
-    index
+    Ok(())
 }

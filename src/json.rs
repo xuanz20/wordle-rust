@@ -1,6 +1,6 @@
 use serde_derive::{ Serialize, Deserialize };
 
-use crate::{run::{ANSWER_ARR, update_guess_arr, TOTAL_SUCCESS, TOTAL_FAILURE, TOTAL_SUCCESS_GUESS_TIMES}, args::STATE};
+use crate::{run::{ANSWER_ARR, TOTAL_SUCCESS, TOTAL_FAILURE, TOTAL_SUCCESS_GUESS_TIMES}, args::STATE, utils::update_guess_arr};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Game {
