@@ -222,7 +222,11 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             }
             match next.as_str() {
                 "N" => {break;},
-                _ => {println!("")},
+                _ => {
+                    if is_tty() {
+                        println!("");
+                    }
+                },
             }
         }
     }
