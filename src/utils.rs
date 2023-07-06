@@ -240,11 +240,19 @@ pub fn update_pos(guess: &[usize; 5], result: &Vec<Status>) {
 }
 
 pub fn print_pos() {
+    if is_tty() {
+        println!("{}", console::style("All possible words:").blue())
+    } else {
+        println!("All possible words:");
+    }
     let pos = POSSIBLE_SET.exclusive_access();
-    println!("All possible words:");
     pos.iter().for_each(|w| print!("{} ", w));
     println!("");
-    println!("{} possible words in total", pos.len());
+    if is_tty() {
+        println!("{} {}", console::style(format!("{}", pos.len())).green(), console::style("possible words in total").blue())
+    } else {
+        println!("{} possible words in total", pos.len());
+    }
 }
 
 pub fn is_pos_word(w: &String, guess: &[usize; 5], result: &Vec<Status>) -> bool {
@@ -283,6 +291,9 @@ pub fn print_rec() {
     let pos = POSSIBLE_SET.exclusive_access().clone();
     let mut entropy: Vec<(&str, f64)> = pos.iter().map(|s| (s.as_str(), cal_entropy(s, &pos))).collect();
     entropy.sort_by(|(_, a), (_, b)| b.partial_cmp(a).unwrap());
+    if is_tty() {
+        println!("{}", console::style("Some recommend words:").blue());
+    }
     for (key, value) in entropy.iter().take(10) {
         print!("{}: {:.2} ", key, value);
     }

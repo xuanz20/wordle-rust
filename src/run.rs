@@ -60,24 +60,32 @@ pub fn run_one_time() -> (bool, i32, Game) {
     let mut valid_input = true;
 
     while times <= 6 { // each guess
-        if is_tty() {
-            print!("\nRound {}, enter your input: ", console::style(format!("{}", times)).blue());
-            io::stdout().flush().unwrap();
-        }
         if valid_input {
+            if is_tty() {
+                println!("");
+                println!("Round {}:", console::style(format!("{}", times)).blue());
+            }
             if is_pos() || is_rec() {
                 update_pos(&last_guess, &result);
             }
             if is_pos() {
                 if times == 1 {
-                    println!("All words are possible.");
+                    if is_tty() {
+                        println!("{}", console::style("All words are possible.").blue());
+                    } else {
+                        println!("All words are possible.");
+                    }
                 } else {
                     print_pos();
                 }
             }
-            if is_rec() {
+            if is_rec() && times != 1 {
                 print_rec();
             }
+        }
+        if is_tty() {
+            print!("Enter your input: ");
+            io::stdout().flush().unwrap();
         }
         let mut success = true;
         let mut guess_str = String::new();
