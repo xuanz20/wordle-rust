@@ -58,12 +58,14 @@ pub fn run_one_time() -> (bool, i32, Game) {
             if is_pos() || is_rec() {
                 update_pos(&last_guess, &result);
             }
-            if times == 1 {
-                println!("All words are possible.");
-            } else {
-                print_pos();
+            if is_pos() {
+                if times == 1 {
+                    println!("All words are possible.");
+                } else {
+                    print_pos();
+                }
             }
-            if is_rec() && times != 1 {
+            if is_rec() {
                 print_rec();
             }
         }
