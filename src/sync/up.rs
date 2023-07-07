@@ -1,3 +1,6 @@
+// Copied from https://learningos.github.io/rCore-Tutorial-Book-v3/chapter2/3batch-system.html
+// A utility struct to use global variable safely
+
 //! Uniprocessor interior mutability primitives
 
 use core::cell::{RefCell, RefMut};
