@@ -70,36 +70,36 @@ pub fn count_times(arr: &[usize; 5]) -> [i32; 26] {
 
 pub fn valid(input: &String) -> bool {
     if input.len() != 5 {
-        if is_tty() {
+        if is_tty() && !is_tui() {
             println!(
                 "{}",
                 console::style("Enter a 5-length lowercase word. Try again.").red()
             )
-        } else {
+        } else if !is_tui() {
             println!("INVALID");
         }
         return false;
     }
     for ch in input.chars() {
         if !ch.is_ascii_lowercase() {
-            if is_tty() {
+            if is_tty() && !is_tui() {
                 println!(
                     "{}",
                     console::style("Enter a 5-length lowercase word. Try again.").red()
                 )
-            } else {
+            } else if !is_tui() {
                 println!("INVALID");
             }
             return false;
         }
     }
     if !ACCEPTABLE_SET.exclusive_access().contains(input) {
-        if is_tty() {
+        if is_tty() && !is_tui() {
             println!(
                 "{}",
                 console::style("Your input is not in the acceptable list. Try again.").red()
             )
-        } else {
+        } else if !is_tui() {
             println!("INVALID");
         }
         return false;

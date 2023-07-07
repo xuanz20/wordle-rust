@@ -228,6 +228,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             if next.len() > 1 {
                 next.pop();
             }
+            
             match next.as_str() {
                 "N" => {break;},
                 _ => {
