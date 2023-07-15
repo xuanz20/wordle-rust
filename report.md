@@ -49,15 +49,15 @@ pub fn is_tty() -> bool { *IS_TTY.exclusive_access() }
 
 交互模式：
 
- 
+![](https://github.com/xuanz20/wordle-rust/blob/master/image/image_01.png)
 
 交互模式：随机答案，利用可能词和推荐词来猜测
 
- 
+ ![](https://github.com/xuanz20/wordle-rust/blob/master/image/image_02.png)
 
 TUI：
 
- 
+ ![](https://github.com/xuanz20/wordle-rust/blob/master/image/image_03.png)
 
 ### 提高要求实现方式
 
