@@ -49,13 +49,15 @@ pub fn is_tty() -> bool { *IS_TTY.exclusive_access() }
 
 交互模式：
 
-<img src="/Users/xuanzhen/Library/Application Support/typora-user-images/截屏2023-07-09 18.52.49.png" alt="截屏2023-07-09 18.52.49" style="zoom:50%;" /> 
+ 
 
-交互模式：随机答案，利用可能词和推荐词来猜测<img src="/Users/xuanzhen/Library/Application Support/typora-user-images/image-20230709185459084.png" alt="image-20230709185459084" style="zoom:50%;" />
+交互模式：随机答案，利用可能词和推荐词来猜测
+
+ 
 
 TUI：
 
-<img src="/Users/xuanzhen/Library/Application Support/typora-user-images/image-20230709185736733.png" alt="image-20230709185736733" style="zoom:50%;" /> 
+ 
 
 ### 提高要求实现方式
 
